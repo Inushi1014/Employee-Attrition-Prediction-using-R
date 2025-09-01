@@ -1,0 +1,128 @@
+---
+title: "Employee Attrition Prediction"
+author: "Inushi Kashmira"
+date: "2025-09-01"
+output: word_document
+---
+```{r}
+#install.packages(c("tidyverse","GGally","caret","pROC"))
+library(tidyverse)
+library(GGally)
+library(caret)
+library(pROC)
+
+```
+
+
+
+```{r}
+data<-read.csv("D://project1//WA_Fn-UseC_-HR-Employee-Attrition.csv")
+head(data)
+```
+```{r}
+str(data)
+summary(data)
+```
+```{r}
+# Convert categorical variables to factors
+categorical_vars <- c("BusinessTravel","Department","EducationField","Gender",
+                      "JobRole","MaritalStatus","OverTime","Attrition")
+
+data[categorical_vars] <- lapply(data[categorical_vars], as.factor)
+
+# Encode target variable: Attrition Yes = 1, No = 0
+data$Attrition <- ifelse(data$Attrition=="Yes", 1, 0)
+
+# Check missing values
+sum(is.na(data))
+```
+```{r}
+install.packages("ggplot2")
+library(ggplot2)
+```
+
+
+
+```{r}
+# Attrition rate by Department
+ggplot(data, aes(x=Department, fill=factor(Attrition))) +
+  geom_bar(position="fill") +
+  labs(title="Attrition Rate by Department", y="Proportion", fill="Attrition") +
+  theme_minimal()
+
+
+
+# Scatter plot of Age vs MonthlyIncome colored by Attrition
+ggplot(data, aes(x=Age, y=MonthlyIncome, color=factor(Attrition))) +
+  geom_point() +
+  labs(title="Age vs Monthly Income by Attrition", color="Attrition") +
+  theme_minimal()
+
+```
+```{r}
+set.seed(123)
+trainIndex <- createDataPartition(data$Attrition, p=0.7, list=FALSE)
+train_data <- data[trainIndex,]
+test_data <- data[-trainIndex,]
+
+```
+
+
+```{r}
+# Build logistic regression model
+model <- glm(Attrition ~ Age + MonthlyIncome + JobSatisfaction + 
+               YearsAtCompany + OverTime + DistanceFromHome + JobLevel,
+             data=train_data, family=binomial)
+
+summary(model)
+
+```
+
+```{r}
+# Predict probabilities on test set
+probabilities <- predict(model, newdata=test_data, type="response")
+probabilities
+
+# Convert probabilities to class (0/1) with threshold 0.5
+predicted_class <- ifelse(probabilities > 0.5, 1, 0)
+predicted_class
+
+# Confusion matrix
+conf_matrix <- table(Predicted=predicted_class, Actual=test_data$Attrition)
+print(conf_matrix)
+
+# Accuracy
+accuracy <- sum(diag(conf_matrix)) / sum(conf_matrix)
+accuracy
+print(paste("Accuracy:", round(accuracy, 3)))
+```
+
+```{r}
+
+
+# ROC Curve & AUC
+install.packages("pROC")
+library(pROC)
+roc_obj <- roc(test_data$Attrition, probabilities)
+roc_obj
+plot(roc_obj, col="blue", main="ROC Curve")
+#auc_value <- auc(roc_obj)
+#print(paste("AUC:", round(auc_value, 3)))
+
+```
+
+```{r}
+# Attrition by OverTime
+ggplot(data, aes(x=OverTime, fill=factor(Attrition))) +
+  geom_bar(position="fill") +
+  labs(title="Attrition Rate by OverTime", y="Proportion", fill="Attrition") +
+  theme_minimal()
+
+# Attrition by JobSatisfaction
+ggplot(data, aes(x=JobSatisfaction, fill=factor(Attrition))) +
+  geom_bar(position="fill") +
+  labs(title="Attrition Rate by Job Satisfaction", y="Proportion", fill="Attrition") +
+  theme_minimal()
+
+```
+
